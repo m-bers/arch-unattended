@@ -30,6 +30,93 @@ mkdir /mnt/etc
 genfstab -U -p /mnt >> /mnt/etc/fstab
 pacstrap /mnt base
 
-arch-chroot /mnt curl https://raw.githubusercontent.com/m-bers/arch-unattended/main/arch-chroot.sh | bash -s $USER $DISK $TZ $GH
+cat <<CHROOTSCRIPT > /mnt/arch-chroot.sh
+#!/bin/bash
+set -x
+# Install packages
+pacman -S --noconfirm \
+    linux \
+    linux-headers \
+    openssh base-devel \
+    networkmanager \
+    wpa_supplicant \
+    wireless_tools \
+    netctl dialog \
+    lvm2 \
+    efibootmgr \
+    dosfstools \
+    os-prober \
+    mtools \
+    intel-ucode \
+    zsh \
+    python-pip \
+    docker \
+    docker-compose \
+    git
+
+pip install ssh-import-id
+
+# Enable services 
+systemctl enable sshd
+systemctl enable NetworkManager
+systemctl enable docker
+
+# Set kernel parameters
+sed -i 's/block filesystems/block lvm2 filesystems/g' /etc/mkinitcpio.conf
+mkinitcpio -p linux
+
+# Set locale
+echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+locale-gen
+echo "LANG=en_US.UTF-8" >> /etc/locale.conf
+
+# Set timezone
+ln -sf "/usr/share/zoneinfo/${TZ}" /etc/localtime
+hwclock --systohc
+
+# Set hostname
+hostnamectl set-hostname frodo
+
+# Create user and import SSH key
+useradd -m -g users -G wheel,docker $USER
+echo '%wheel ALL=(ALL) NOPASSWD: ALL' | sudo EDITOR='tee -a' visudo
+runuser -l $USER -c 'ssh-import-id gh:${GH}'
+
+# Install bootloader
+bootctl install
+cat <<DEFAULTBOOT > /boot/loader/loader.conf
+default arch-*.conf
+timeout 4
+DEFAULTBOOT
+
+cat <<ARCHBOOT > /boot/loader/entries/arch-latest.conf
+title Arch Linux
+linux /vmlinuz-linux
+initrd /intel-ucode.img
+initrd /initramfs-linux.img
+options root="/dev/vg0/root" rw
+ARCHBOOT
+
+bootctl update
+
+cat <<SETUEFI > /etc/systemd/system/setuefi.service
+[Unit]
+Description=Set PXE as default EFI boot option
+ 
+[Service]
+ExecStart=efibootmgr -n 0005
+ 
+[Install]
+WantedBy=multi-user.target
+SETUEFI
+systemctl enable setuefi
+
+# Add dotfiles
+chsh -s /usr/bin/zsh $USER
+
+CHROOTSCRIPT
+
+chmod +x /mnt/arch-chroot.sh
+arch-chroot /mnt /arch-chroot.sh
 umount -a 
 reboot
