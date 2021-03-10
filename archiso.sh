@@ -30,6 +30,6 @@ mkdir /mnt/etc
 genfstab -U -p /mnt >> /mnt/etc/fstab
 pacstrap /mnt base
 
-arch-chroot /mnt curl https://raw.githubusercontent.com/m-bers/arch-unattended/main/arch-chroot.sh | bash
+arch-chroot /mnt curl https://raw.githubusercontent.com/m-bers/arch-unattended/main/arch-chroot.sh | bash -s $USER $DISK $TZ $GH
 umount -a 
 reboot
