@@ -1,5 +1,12 @@
 #!/bin/bash
 set -x
+
+USER="${1}"
+DISK="${2}"
+TZ="${3}"
+GH="${4}"
+
+
 # Install packages
 pacman -S --noconfirm \
     linux \
