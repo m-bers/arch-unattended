@@ -13,7 +13,7 @@ wipefs --all --force $DISK
 echo -e "g\nn\n\n\n+500M\nt\n1\nn\n\n\n\nt\n\n30\nw\n" | fdisk $DISK
 
 mkfs.vfat -F32 "${DISK}1"
-pvcreate --dataalignment 1m "${DISK}2"
+pvcreate --force --dataalignment 1m "${DISK}2"
 vgcreate vg0 "${DISK}2"
 lvcreate -y -L 30GB vg0 -n root
 lvcreate -y -L 50GB vg0 -n home
